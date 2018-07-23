@@ -1,7 +1,7 @@
 # MultiSigContract
 
 ## Solidity Contract and Tests are done (UI Is In Progress)
-*`/contracts/MultiSig.sol`
+`/contracts/MultiSig.sol`
 
 ## Possible Next Steps
 * Implement factory pattern so one user could have multiple multi-sig wallets
