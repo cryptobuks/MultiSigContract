@@ -1,7 +1,8 @@
 # MultiSigContract
 
 ## Solidity Contract and Tests are done (UI Is In Progress)
-`/contracts/MultiSig.sol`
+*`/contracts/MultiSig.sol`
+* Contract requires 3 owners and 2 signatures for withdrawals to be made
 
 ## Possible Next Steps
 * Implement factory pattern so one user could have multiple multi-sig wallets
