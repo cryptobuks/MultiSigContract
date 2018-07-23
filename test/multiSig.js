@@ -43,14 +43,16 @@ contract('MultiSig', ([owner]) => {
 
   contract('Fallback Function', () => {
     let multiSigWallet;
+    let depositEvent;
 
     beforeEach(async () => {
       multiSigWallet = await MultiSig.new(owners);
+      depositEvent = multiSigWallet.Deposit();
     });
 
     it('should allow deposits from any address', async () => {
       // Contribution by owner
-      await web3.eth.sendTransaction({to: multiSigWallet.contract.address, from: creator, value:10000000000000000000});
+      await multiSigWallet.sendTransaction({from: creator, value:10000000000000000000});
       const balanceOne = multiSigWallet.contract.getBalanceInWei().toNumber();
 
       assert.equal(balanceOne, 10000000000000000000);
@@ -61,13 +63,23 @@ contract('MultiSig', ([owner]) => {
 
       assert.equal(balanceTwo, 20000000000000000000);
     });
-  })
+
+    it('should fire event when a deposit is made', async function () {
+      await multiSigWallet.sendTransaction({from: creator, value:100000000});
+      const eventData = await depositEvent.get()
+
+      assert.equal(eventData[0].args._contributor, owner);
+      assert.equal(eventData[0].args._value.toNumber(), 100000000);
+    });
+  });
 
   contract('proposeTransaction', () => {
       let multiSigWallet;
+      let transactionProposalEvent;
 
       beforeEach(async () => {
         multiSigWallet = await MultiSig.new(owners);
+        transactionProposalEvent = multiSigWallet.TransactionProposal();
       });
 
       it('should not allow a non-owner to propose a transaction', async () => {
@@ -87,34 +99,43 @@ contract('MultiSig', ([owner]) => {
         assert.equal(transaction[0], recipient);
         assert.equal(transaction[1].toNumber(), 10000000000000000000);
       });
+
+    it('should fire event when a proposal is created', async function () {
+      await multiSigWallet.proposeTransaction(recipient, 10000000000000000000, {from: creator});
+      const eventData = await transactionProposalEvent.get();
+
+      assert.equal(eventData[0].args._transactionId, 0);
+    });
   });
 
   contract('signAndSendTransaction', () => {
     const transactionId = 0;
     let multiSigWallet;
+    let transactionConfirmedEvent;
 
     beforeEach(async () => {
       multiSigWallet = await MultiSig.new(owners);
       await multiSigWallet.proposeTransaction(recipient, 100000000, {from: creator});
+      transactionConfirmedEvent = multiSigWallet.TransactionConfirmed();
     });
 
     it('should not allow an owner to sign and send if contract does not have enough funds', async () => {
 
-      await web3.eth.sendTransaction({to: multiSigWallet.contract.address, from: secondOwnerSigner, value: 100});
+      await multiSigWallet.sendTransaction({from: secondOwnerSigner, value:100});
 
       assertRevert(multiSigWallet.signAndSendTransaction(transactionId, {from: secondOwnerSigner}));
     });
 
     it('should not allow an owner to sign and send if the owner proposed the transaction', async () => {
 
-      await web3.eth.sendTransaction({to: multiSigWallet.contract.address, from: secondOwnerSigner, value: 9984703199999});
+      await multiSigWallet.sendTransaction({from: secondOwnerSigner, value:9984703199999});
 
       assertRevert(multiSigWallet.signAndSendTransaction(transactionId, {from: creator}));
     });
 
     it('should allow an owner to sign and send a previously proposed transaction', async () => {
 
-      await web3.eth.sendTransaction({to: multiSigWallet.contract.address, from: secondOwnerSigner, value: 9984703199999});
+      await multiSigWallet.sendTransaction({from: secondOwnerSigner, value:9984703199999});
       await multiSigWallet.signAndSendTransaction(transactionId, {from: secondOwnerSigner});
       const transaction = await multiSigWallet.transactions.call(transactionId, {from: secondOwnerSigner});
 
@@ -122,7 +143,15 @@ contract('MultiSig', ([owner]) => {
       assert.equal(transaction[1].toNumber(), 100000000);
       assert.equal(transaction[2], true);
     });
-  })
+
+    it('should fire event when a transaction is confirmed', async function () {
+      await multiSigWallet.sendTransaction({from: secondOwnerSigner, value:10000000000000000000});
+      await multiSigWallet.signAndSendTransaction(transactionId, {from: secondOwnerSigner});
+      const eventData = await transactionConfirmedEvent.get();
+
+      assert.equal(eventData[0].args._transactionId, 0);
+    });
+  });
 
   contract('getSignaturesForTransaction', () => {
     const transactionId = 0;
@@ -130,7 +159,7 @@ contract('MultiSig', ([owner]) => {
 
     beforeEach(async () => {
       multiSigWallet = await MultiSig.new(owners);
-      await web3.eth.sendTransaction({to: multiSigWallet.contract.address, from: secondOwnerSigner, value:9984703199999});
+      await multiSigWallet.sendTransaction({from: secondOwnerSigner, value:10000000000000000000});
       await multiSigWallet.proposeTransaction(recipient, 100000000, {from: creator});
     });
 
@@ -161,7 +190,7 @@ contract('MultiSig', ([owner]) => {
 
     beforeEach(async () => {
       multiSigWallet = await MultiSig.new(owners);
-      await web3.eth.sendTransaction({to: multiSigWallet.contract.address, from: secondOwnerSigner, value:9984703199999});
+      await multiSigWallet.sendTransaction({from: secondOwnerSigner, value:9984703199999});
     });
 
     it('should not allow non-owner to get wallet balance', async () => {

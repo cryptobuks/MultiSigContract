@@ -2,9 +2,9 @@ pragma solidity 0.4.24;
 
 contract MultiSig {
   // Events
-  event Deposit(address indexed sender, uint value);
-  event TransactionProposal(uint transactionId);
-  event TransactionConfirmed(uint transactionId);
+  event Deposit(address _contributor, uint _value);
+  event TransactionProposal(uint _transactionId);
+  event TransactionConfirmed(uint _transactionId);
 
   // Storage Variables
   mapping(address => bool) public owners;
