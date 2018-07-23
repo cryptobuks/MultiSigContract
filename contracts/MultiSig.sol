@@ -27,8 +27,13 @@ contract MultiSig {
     _;
   }
 
-  modifier isOwner (address addrOfSender) {
-    require(owners[addrOfSender]);
+  modifier isOwner () {
+    require(owners[msg.sender]);
+    _;
+  }
+
+  modifier isNotProposer (uint _transactionId) {
+    require(transactions[_transactionId].signatures[0] != msg.sender);
     _;
   }
 
@@ -50,14 +55,14 @@ contract MultiSig {
 
   // Default Fallback Function
   function () public payable {
-    Deposit(msg.sender, msg.value);
+    emit Deposit(msg.sender, msg.value);
   }
 
   // External Functions
   // doesn't check to see if contract has enough to send amount
   function proposeTransaction (address _recipient, uint _value)
   external
-  isOwner(msg.sender)
+  isOwner
   {
     transactions[numOfTransactions] = Transaction({
       recipient: _recipient,
@@ -66,26 +71,26 @@ contract MultiSig {
       signatures: new address[](0)
     });
     transactions[numOfTransactions].signatures.push(msg.sender);
-    TransactionProposal(numOfTransactions);
-    numOfTransactions++;
+    emit TransactionProposal(numOfTransactions++);
   }
 
   function signAndSendTransaction (uint _transactionId)
   external
-  isOwner(msg.sender)
+  isOwner
   isValidTransaction(_transactionId)
+  isNotProposer(_transactionId)
   {
     transactions[_transactionId].signatures.push(msg.sender);
     transactions[_transactionId].sent = true;
     transactions[_transactionId].recipient.transfer(transactions[_transactionId].value);
-    TransactionConfirmed(_transactionId);
+    emit TransactionConfirmed(_transactionId);
   }
 
   // View Functions
   function getSignaturesForTransaction (uint _transactionId)
   external
   view
-  isOwner(msg.sender)
+  isOwner
   returns (address []) {
     return transactions[_transactionId].signatures;
   }
@@ -93,10 +98,8 @@ contract MultiSig {
   function getBalanceInWei ()
   external
   view
-  isOwner(msg.sender)
+  isOwner
   returns (uint) {
     return address(this).balance;
   }
-
-  // to go in line with the push/pull security, i would rather have an address withdraw
 }
